@@ -27,42 +27,35 @@ $htmlContent = getCurlContent($url);
 
 try {
     $html = hQuery::fromHTML($htmlContent);
+
+    // Mendapatkan data kutipan, indeks-h, dan indeks-i10
+    $citations = $html->find('td.gsc_rsb_std:eq(0)')->text();
+    $hIndex = $html->find('td.gsc_rsb_std:eq(2)')->text();
+    $i10Index = $html->find('td.gsc_rsb_std:eq(4)')->text();
+
+    $years = $html->find('span.gsc_g_t');
+    $citationCounts = $html->find('span.gsc_g_al');
+
+    $citation = [];
+    $year = [];
+
+
+    foreach ($years as $value) {
+        $year[] = $value->text();
+    }
+    foreach ($citationCounts as $value) {
+        $citation[] = $value->text();
+    }
+
+    $data = array_combine($year, $citation);
+
+    // Mengonversi data ke format yang diterima oleh Google Charts
+    $jsonData = json_encode($data);
+    // var_dump($jsonData);
 } catch (Exception $e) {
     die('Error: ' . $e->getMessage());
 }
 
-function getTextOrNull($element)
-{
-    return $element ? $element->text() : null;
-}
-
-
-// Mendapatkan data kutipan, indeks-h, dan indeks-i10
-$citations = getTextOrNull($html->find('td.gsc_rsb_std:eq(0)'));
-$hIndex = getTextOrNull($html->find('td.gsc_rsb_std:eq(2)'));
-$i10Index = getTextOrNull($html->find('td.gsc_rsb_std:eq(4)'));
-
-
-$years = $html->find('span.gsc_g_t');
-$citationCounts = $html->find('span.gsc_g_al');
-
-$data = [];
-
-// Periksa apakah data tahun dan kutipan ditemukan
-if ($years && $citationCounts && count($years) === count($citationCounts)) {
-    foreach ($years as $index => $year) {
-        $data[] = [
-            'year' => getTextOrNull($year),
-            'citations' => (int) getTextOrNull($citationCounts[$index]),
-        ];
-    }
-} else {
-    echo 'Data tahun atau kutipan tidak ditemukan atau jumlahnya tidak sesuai.';
-}
-
-// Mengonversi data ke format yang diterima oleh Google Charts
-$jsonData = json_encode($data);
-var_dump($jsonData);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -72,25 +65,30 @@ var_dump($jsonData);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scraping Google Scholar Data</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
+    <script>
         google.charts.load('current', {
-            packages: ['corechart']
+            packages: ['corechart', 'line']
         });
-        google.charts.setOnLoadCallback(drawChart);
+        google.charts.setOnLoadCallback(drawBasic);
+        let JsonData = <?php echo json_encode($data); ?>;
+        let FormatJsonData = Object.entries(JsonData).map(([key, value]) => {
+            return [parseInt(key), parseInt(value)];
+        });
 
-        function drawChart() {
+        function drawBasic() {
+
             var data = new google.visualization.DataTable();
-            data.addColumn('string', 'Year');
-            data.addColumn('number', 'Citations');
+            data.addColumn('number', 'Tahun');
+            data.addColumn('number', 'Kutipan');
 
-            var jsonData = <?php echo $jsonData; ?>;
-            data.addRows(jsonData.map(item => [item.year, item.citations]));
+            data.addRows(FormatJsonData);
 
             var options = {
-                title: 'Citations Over Time',
-                curveType: 'function',
-                legend: {
-                    position: 'bottom'
+                hAxis: {
+                    title: 'Tahun'
+                },
+                vAxis: {
+                    title: 'Jumlah'
                 }
             };
 

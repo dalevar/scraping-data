@@ -85,7 +85,8 @@ try {
 
             var options = {
                 hAxis: {
-                    title: 'Tahun'
+                    title: 'Tahun',
+                    format: '####'
                 },
                 vAxis: {
                     title: 'Jumlah'
